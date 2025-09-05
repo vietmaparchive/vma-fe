@@ -36,3 +36,29 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Deployment
+
+This project is configured for deployment to Cloudflare Pages.
+
+### Prerequisites
+
+Before deploying, you need to have the [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/get-started/) installed and authenticated with your Cloudflare account.
+
+```sh
+# Install Wrangler
+npm install -g wrangler
+
+# Login to Cloudflare
+wrangler login
+```
+
+### Deploying the application
+
+To deploy the application, run the following command:
+
+```sh
+npm run deploy
+```
+
+This command will build the Svelte application and deploy it to Cloudflare Pages.
