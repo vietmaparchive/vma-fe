@@ -24,7 +24,8 @@ const basemaps: Record<string, { label: string; url: string }> = {
 
 onMount(async () => {
   // @ts-ignore - external module without types
-  ol = await import('https://cdn.jsdelivr.net/npm/ol@7.4.0/dist/ol.js');
+  const olModule = await import('https://cdn.jsdelivr.net/npm/ol@7.4.0/dist/ol.js');
+  ol = olModule.default;
   const { Map, View, layer, source, proj } = ol;
   baseLayer = new layer.Tile({
     source: new source.XYZ({
