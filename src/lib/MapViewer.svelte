@@ -1,78 +1,60 @@
 <script lang="ts">
-import { onMount } from 'svelte';
+  import { onMount } from 'svelte';
+  import 'ol/ol.css';
+  import Map from 'ol/Map';
+  import View from 'ol/View';
+  import TileLayer from 'ol/layer/Tile';
+  import OSM from 'ol/source/OSM';
+  import XYZ from 'ol/source/XYZ';
+  import { fromLonLat } from 'ol/proj';
+  import { selectedBasemap } from './store';
 
-let mapTarget: HTMLDivElement;
-let map: any;
-let baseLayer: any;
-let selected: string = 'esri';
-let ol: any;
+  let mapTarget: HTMLDivElement;
+  let map: Map;
 
-const basemaps: Record<string, { label: string; url: string }> = {
-  esri: {
-    label: 'Esri World Imagery',
-    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-  },
-  gstreets: {
-    label: 'Google Streets',
-    url: 'https://mt{0-3}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
-  },
-  gsat: {
-    label: 'Google Satellite',
-    url: 'https://mt{0-3}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
-  }
-};
+  const basemaps = {
+    esri: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    },
+    'google-street': {
+      url: 'http://mt.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', // Placeholder
+    },
+    'google-satellite': {
+      url: 'http://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', // Placeholder
+    },
+  };
 
-onMount(async () => {
-  // @ts-ignore - external module without types
-  const olModule = await import('https://cdn.jsdelivr.net/npm/ol@7.4.0/dist/ol.js');
-  ol = olModule.default;
-  const { Map, View, layer, source, proj } = ol;
-  baseLayer = new layer.Tile({
-    source: new source.XYZ({
-      url: basemaps[selected].url
-    })
+  let tileLayer = new TileLayer({
+    source: new OSM(),
   });
-  map = new Map({
-    target: mapTarget,
-    layers: [baseLayer],
-    view: new View({
-      center: proj.fromLonLat([0, 0]),
-      zoom: 2
-    })
-  });
-});
 
-function changeBasemap() {
-  if (baseLayer && ol) {
-    const { source } = ol;
-    baseLayer.setSource(
-      new source.XYZ({
-        url: basemaps[selected].url
-      })
-    );
-  }
-}
+  selectedBasemap.subscribe((basemap) => {
+    if (map) {
+      const newSource = new XYZ({
+        url: basemaps[basemap].url,
+      });
+      tileLayer.setSource(newSource);
+    }
+  });
+
+  onMount(() => {
+    map = new Map({
+      target: mapTarget,
+      layers: [tileLayer],
+      view: new View({
+        center: fromLonLat([106.70098, 10.77653]),
+        zoom: 14,
+      }),
+    });
+  });
 </script>
 
-<div class="controls">
-  <label>
-    Basemap:
-    <select bind:value={selected} on:change={changeBasemap}>
-      {#each Object.entries(basemaps) as [key, bm]}
-        <option value={key}>{bm.label}</option>
-      {/each}
-    </select>
-  </label>
-</div>
 <div bind:this={mapTarget} class="map"></div>
 
 <style>
-.map {
-  width: 100%;
-  height: 80vh;
-}
-.controls {
-  margin-bottom: 0.5rem;
-}
+  .map {
+    width: 100%;
+    height: 100%;
+  }
 </style>
 
