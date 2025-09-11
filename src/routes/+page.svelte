@@ -1,6 +1,6 @@
 <script lang="ts">
-  import MapViewer from '$lib/MapViewer.svelte';
-  import Sidebar from '$lib/Sidebar.svelte';
+  import MapViewer from '$lib/components/MapViewer.svelte';
+  import Sidebar from '$lib/components/Sidebar.svelte';
 </script>
 
 <main>
