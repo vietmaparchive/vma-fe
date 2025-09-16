@@ -8,36 +8,43 @@
   import { fromLonLat } from 'ol/proj';
   import { selectedBasemap } from '../store';
   import {loadMapDataset} from '../services/mapDataService';
+  import { BaseMaps, type BasemapKey, type BasemapType } from '$lib/types/const';
     import { load } from 'ol/Image';
 
   let mapTarget: HTMLDivElement;
   let map: Map;
 
-  const basemaps = {
-    esri: {
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    },
-    'google-street': {
-      url: 'http://mt.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', // Placeholder
-    },
-    'google-satellite': {
-      url: 'http://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', // Placeholder
-    },
-  };
-
+  // Basemap layer
   let tileLayer = new TileLayer({
-    source: new OSM(),
+    source: new XYZ({
+      url: BaseMaps.ERSI.url,
+      attributions: BaseMaps.ERSI.attributions,
+      crossOrigin: 'anonymous',
+    }),
+    zIndex: 0,
   });
 
-  
+  // Function to update basemap layer
+  function handleBasemapChange(basemap: BasemapKey) {
+    console.log('Changing basemap to:', basemap);
+    if (map && tileLayer && BaseMaps[basemap]) {
+      const config = BaseMaps[basemap];
+      tileLayer.setSource(
+        new XYZ({
+          url: config.url,
+          attributions: config.attributions,
+          crossOrigin: 'anonymous',
+          maxZoom: 22,
+        })
+      );
+      console.log('Basemap changed to:', basemap);
+    }
+  }
 
 
   selectedBasemap.subscribe((basemap) => {
     if (map) {
-      const newSource = new XYZ({
-        url: basemaps[basemap].url,
-      });
-      tileLayer.setSource(newSource);
+      handleBasemapChange(basemap);
     }
   });
 
@@ -51,11 +58,7 @@
       }),
     });
 
-    try {
-      await loadMapDataset();
-    } catch (error) {
-      console.error("Error loading map dataset:", error);
-    }
+    
   });
 </script>
 

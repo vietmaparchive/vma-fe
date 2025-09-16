@@ -26,6 +26,7 @@
 		"wrangler": "^4.34.0"
 	},
 	"dependencies": {
+		"@allmaps/openlayers": "^1.0.0-beta.81",
 		"@tailwindcss/vite": "^4.1.13",
 		"ol": "^10.6.1",
 		"tailwindcss": "^4.1.13"

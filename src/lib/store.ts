@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
-import { MapViewModes, type MapViewMode } from './types/const';
+import { BaseMaps, type BasemapType, MapViewModes, type MapViewMode, type BasemapKey } from './types/const';
 
-export const selectedBasemap = writable('esri');
+export const selectedBasemap = writable<BasemapKey>('ERSI'); // Changed to string key
 export const selectedMapType = writable('all');
 export const mapOpacity = writable(0.8);
 export const selectedMapId = writable('');

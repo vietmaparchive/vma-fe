@@ -2,19 +2,8 @@
     import { loadMapDataset } from "$lib/services/mapDataService";
     import { selectedBasemap, selectedMapType, mapOpacity, selectedMapId } from "$lib/store";
     import type { MapData } from "$lib/types";
+    import { BaseMaps } from "$lib/types/const";
     import { onMount } from "svelte";
-
-    const basemaps = {
-        esri: {
-            name: "Esri",
-        },
-        "google-street": {
-            name: "Google Street",
-        },
-        "google-satellite": {
-            name: "Google Satellite",
-        },
-    };
 
     let allMapsData: MapData[] = [];
     let filteredMaps: Array<{ value: string; label: string }> = [];
@@ -55,6 +44,7 @@
         selectedMapId.set(selectElement.value);
     }
 
+
     // Reactively update map selector when filter changes
     $: if ($selectedMapType && allMapsData.length) {
         populateMapSelector($selectedMapType);
@@ -83,7 +73,7 @@
             bind:value={$selectedBasemap}
             class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
         >
-            {#each Object.entries(basemaps) as [key, basemap]}
+            {#each Object.entries(BaseMaps) as [key, basemap]}
                 <option value={key}>{basemap.name}</option>
             {/each}
         </select>

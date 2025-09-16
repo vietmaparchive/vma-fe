@@ -13,18 +13,6 @@
   function setActiveTab(tabId: string) {
     activeTab = tabId;
   }
-
-  const basemaps = {
-    esri: {
-      name: "Esri",
-    },
-    "google-street": {
-      name: "Google Street",
-    },
-    "google-satellite": {
-      name: "Google Satellite",
-    },
-  };
 </script>
 
 <div class="w-1/3 h-full bg-gray-100">
