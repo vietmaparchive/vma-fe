@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Map from "./sidebar/Map.svelte";
+  import Map from "./tabs/Map.svelte";
 
   let activeTab = "map";
 

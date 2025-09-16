@@ -41,6 +41,7 @@
 
     function handleMapSelection(event: Event) {
         const selectElement = event.target as HTMLSelectElement;
+        console.log("Selected map ID:", selectElement.value);
         selectedMapId.set(selectElement.value);
     }
 
