@@ -38,7 +38,7 @@ export const commonHeadersInterceptor: RequestInterceptor = (method, url, header
 };
 
 // Response data transformer
-export const responseDataInterceptor: ResponseInterceptor = <T>(response, data: T) => {
+export const responseDataInterceptor: ResponseInterceptor = <T>(response: Response, data: T) => {
   // You can transform response data here if needed
   return data;
 };

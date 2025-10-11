@@ -23,7 +23,7 @@ export async function getMapDataset(): Promise<MapData[]> {
         }).filter((item: MapData | null): item is MapData => item !== null);
 
         console.log(`Loaded ${allMapsData.length} historical maps`);
-        return allMapsData;
+        return allMapsData as MapData[];
 
     } catch (error) {
         logError(error);
