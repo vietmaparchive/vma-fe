@@ -5,7 +5,7 @@
   import TileLayer from "ol/layer/Tile";
   import XYZ from "ol/source/XYZ";
   import { fromLonLat } from "ol/proj";
-  import { selectedBasemap, selectedMapId } from "../store";
+  import { selectedBasemap, selectedMapId } from "../../store";
   import { BaseMaps, type BasemapKey } from "$lib/types/const";
   import { WarpedMapLayer } from "@allmaps/openlayers";
 
@@ -49,7 +49,12 @@
       currentMapId = null;
     }
 
-    const annotationUrl = `https://annotations.allmaps.org/images/${mapId}`;
+    // Get the map data from the store to access annotation_page_url
+    const allMapsData = window.allMapsData || [];
+    const mapData = allMapsData.find(map => map && map.id === mapId);
+    
+    // Use annotation_page_url if available, otherwise fall back to the constructed URL
+    const annotationUrl = mapData?.annotation_page_url || "https://annotations.allmaps.org/images/" + mapId;
     const mapIds = await warpedMapLayer.addGeoreferenceAnnotationByUrl(annotationUrl);
     if (mapIds && mapIds.length > 0 && typeof mapIds[0] === "string") {
       currentMapId = mapIds[0];

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { loadMapDataset } from "$lib/services/mapDataService";
+    import { getMapDataset } from "$lib/services/artifacts/getMapAnnotations";
     import { selectedBasemap, selectedMapType, mapOpacity, selectedMapId } from "$lib/store";
     import type { MapData } from "$lib/types";
     import { BaseMaps } from "$lib/types/const";
@@ -54,7 +54,9 @@
     onMount(async () => {
         try {
             // Load map dataset
-            allMapsData = await loadMapDataset();
+            allMapsData = await getMapDataset();
+            // Make allMapsData globally accessible for MapViewer component
+            window.allMapsData = allMapsData;
             populateTypeFilter();
             populateMapSelector($selectedMapType);
         } catch (error) {
@@ -100,22 +102,34 @@
         </div>
 
         <div class="space-y-2">
-            <label for="allmapsId" class="text-sm font-medium text-gray-700"
-                >Choose Map</label
+            <label for="mapSelector" class="text-sm font-medium text-gray-700"
+                >Map</label
             >
             <select
-                id="allmapsId"
-                bind:value={$selectedMapId}
+                id="mapSelector"
                 on:change={handleMapSelection}
                 class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
             >
-                <option value="">Select a map...</option>
+                <option value="">Select a map</option>
                 {#each filteredMaps as map}
                     <option value={map.value}>{map.label}</option>
                 {/each}
             </select>
         </div>
 
-       
+        <!-- Opacity Slider -->
+        <div class="space-y-2">
+            <label for="opacitySlider" class="text-sm font-medium text-gray-700"
+                >Opacity: {$mapOpacity}%</label
+            >
+            <input
+                id="opacitySlider"
+                type="range"
+                min="0"
+                max="100"
+                bind:value={$mapOpacity}
+                class="w-full"
+            />
+        </div>
     </div>
 </div>
