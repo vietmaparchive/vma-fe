@@ -1,8 +1,15 @@
 <script lang="ts">
     import { loadMapDataset } from "$lib/services/mapDataService";
-    import { selectedBasemap, selectedMapType, mapOpacity, selectedMapId } from "$lib/store";
+    import {
+        selectedBasemap,
+        selectedMapType,
+        mapOpacity,
+        selectedMapId,
+        viewMode,
+        lensRadius,
+    } from "$lib/store";
     import type { MapData } from "$lib/types";
-    import { BaseMaps } from "$lib/types/const";
+    import { BaseMaps, MapViewModes, ViewModeButtons } from "$lib/types/const";
     import { onMount } from "svelte";
 
     let allMapsData: MapData[] = [];
@@ -10,10 +17,13 @@
     let mapTypes = [{ value: "all", label: "All" }];
 
     function populateTypeFilter() {
-        const typeCounts = allMapsData.reduce((acc, map) => {
-            acc[map.type] = (acc[map.type] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+        const typeCounts = allMapsData.reduce(
+            (acc, map) => {
+                acc[map.type] = (acc[map.type] || 0) + 1;
+                return acc;
+            },
+            {} as Record<string, number>,
+        );
 
         mapTypes = [
             { value: "all", label: "All" },
@@ -44,7 +54,6 @@
         console.log("Selected map ID:", selectElement.value);
         selectedMapId.set(selectElement.value);
     }
-
 
     // Reactively update map selector when filter changes
     $: if ($selectedMapType && allMapsData.length) {
@@ -115,7 +124,86 @@
                 {/each}
             </select>
         </div>
+    </div>
 
-       
+    <!-- Choose view mode -->
+    <div class="space-y-2">
+        <label for="viewMode" class="text-sm font-medium text-gray-700"
+            >View Mode</label
+        >
+        <div class="grid grid-cols-2 gap-2">
+            {#each Object.entries(ViewModeButtons) as [key, button]}
+                <button
+                    type="button"
+                    class="p-2 border border-gray-300 rounded-md flex flex-col items-center justify-center hover:bg-gray-100 transition-colors {$viewMode ===
+                    button.mode
+                        ? 'bg-indigo-100 border-indigo-600 text-indigo-600 font-semibold'
+                        : ''}"
+                    on:click={() => viewMode.set(button.mode)}
+                    title={button.label}
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d={button.icon}
+                        ></path>
+                    </svg>
+                    <span class="text-xs mt-1">{button.label}</span>
+                </button>
+            {/each}
+        </div>
+    </div>
+
+    <!-- Opacity Slider -->
+    <div class="space-y-2">
+        <label for="opacity" class="text-sm font-medium text-gray-700"
+            >Opacity</label
+        >
+        <div class="flex items-center gap-3">
+            <input
+                type="range"
+                id="opacity"
+                min="0"
+                max="1"
+                step="0.01"
+                bind:value={$mapOpacity}
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <span class="w-12 text-right text-sm text-gray-600">
+                {Math.round($mapOpacity * 100)}%
+            </span>
+        </div>
+
+        <!-- Lens radius control (only show for spyglass mode) -->
+        {#if $viewMode === MapViewModes.SPYGLASS}
+            <div class="space-y-2">
+                <label for="lensSize" class="text-sm font-medium text-gray-700"
+                    >Lens Size</label
+                >
+                <div class="flex items-center gap-3">
+                    <input
+                        id="lensSize"
+                        type="range"
+                        min="50"
+                        max="300"
+                        step="5"
+                        bind:value={$lensRadius}
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span
+                        class="text-sm font-mono text-gray-600 w-12 text-center"
+                    >
+                        {Math.round($lensRadius)}px
+                    </span>
+                </div>
+            </div>
+        {/if}
     </div>
 </div>

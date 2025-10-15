@@ -5,5 +5,6 @@ export const selectedBasemap = writable<BasemapKey>('ERSI'); // Changed to strin
 export const selectedMapType = writable('all');
 export const mapOpacity = writable(0.8);
 export const selectedMapId = writable('');
-export const viewMode = writable<MapViewMode>(MapViewModes.OVERLAY);
+export const viewMode = writable<MapViewMode>(MapViewModes.SPYGLASS);
+export const lensRadius = writable(100);
 export const opacity = writable(0.8);
