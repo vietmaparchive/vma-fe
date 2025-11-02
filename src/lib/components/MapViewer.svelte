@@ -21,6 +21,11 @@
   let warpedMapLayer: WarpedMapLayer | any;
   let currentMapId: string | null = null;
 
+  // Slider state
+  let sliderPosition = 50; // Percentage (0-100)
+  let isDragging = false;
+  let mapRect: DOMRect;
+
   // Add caching and loading state management
   interface CachedMapData {
     mapId: string;
@@ -40,8 +45,13 @@
       url: BaseMaps.ERSI.url,
       attributions: BaseMaps.ERSI.attributions,
       crossOrigin: "anonymous",
+      cacheSize: 2048,
+      minZoom: 14,
+      maxZoom: 22,
+      transition: 250,
     }),
     zIndex: 0,
+    preload: 1,
   });
 
   // Function to update basemap layer
@@ -53,6 +63,8 @@
           url: config.url,
           attributions: config.attributions,
           crossOrigin: "anonymous",
+          cacheSize: 2048,
+          minZoom: 14,
           maxZoom: 22,
         }),
       );
@@ -104,11 +116,8 @@
       } else {
         console.log("Loading map from network:", mapId);
 
-        // Use annotation_page_url if available, otherwise fall back to constructed URL
-        const annotationUrl =
-          `https://annotations.allmaps.org/images/${mapId}`;
+        const annotationUrl = `https://annotations.allmaps.org/images/${mapId}`;
 
-        // Fetch annotation data
         const response = await fetch(annotationUrl, { signal });
         if (!response.ok) {
           throw new Error(`Annotation not found (HTTP ${response.status})`);
@@ -139,12 +148,13 @@
       currentMapId = resultMapId;
       console.log("Successfully loaded historical map with ID:", currentMapId);
 
-      // Ensure layer is added to map
+      // Ensure layer is added to map with proper z-index
       if (map && !map.getLayers().getArray().includes(warpedMapLayer)) {
         map.addLayer(warpedMapLayer as any);
+        warpedMapLayer.setZIndex(10); // Higher than basemap
       }
 
-      // Set opacity
+      // Set opacity - this allows basemap to show through
       warpedMapLayer.setOpacity($mapOpacity);
 
       // Update clipping after a short delay to ensure map is rendered
@@ -154,12 +164,58 @@
     } catch (error) {
       if (!signal.aborted) {
         console.error("Error loading historical map:", error);
-        // You might want to emit an event or update a store here for error handling
       }
     } finally {
       isLoading = false;
       loadingController = null;
     }
+  }
+
+  // Slider event handlers
+  function handleSliderStart(event: MouseEvent | TouchEvent) {
+    if (
+      $viewMode === MapViewModes.SIDE_X ||
+      $viewMode === MapViewModes.SIDE_Y
+    ) {
+      isDragging = true;
+      mapRect = mapTarget.getBoundingClientRect();
+
+      // Prevent map interaction
+      map.getInteractions().forEach((interaction) => {
+        interaction.setActive(false);
+      });
+
+      event.preventDefault();
+    }
+  }
+
+  function handleSliderMove(event: MouseEvent | TouchEvent) {
+    if (!isDragging || !mapRect) return;
+
+    const clientX =
+      "touches" in event ? event.touches[0].clientX : event.clientX;
+    const clientY =
+      "touches" in event ? event.touches[0].clientY : event.clientY;
+
+    if ($viewMode === MapViewModes.SIDE_X) {
+      const x = clientX - mapRect.left;
+      sliderPosition = Math.max(0, Math.min(100, (x / mapRect.width) * 100));
+    } else if ($viewMode === MapViewModes.SIDE_Y) {
+      const y = clientY - mapRect.top;
+      sliderPosition = Math.max(0, Math.min(100, (y / mapRect.height) * 100));
+    }
+
+    updateViewModeClipping();
+    event.preventDefault();
+  }
+
+  function handleSliderEnd() {
+    isDragging = false;
+
+    // Re-enable map interactions
+    map.getInteractions().forEach((interaction) => {
+      interaction.setActive(true);
+    });
   }
 
   // Cleanup function for cache management
@@ -201,11 +257,13 @@
     const [width, height] = map.getSize();
     if (!width || !height) return;
 
-    // update basemap clipping
-    updateBasemapClipping(width, height);
+    requestAnimationFrame(() => {
+      // update basemap clipping
+      updateBasemapClipping(width, height);
 
-    // update warpedMapLayer clipping based on view mode
-    updateWarpedMapClipping(width, height);
+      // update warpedMapLayer clipping based on view mode
+      updateWarpedMapClipping(width, height);
+    });
   }
 
   function updateBasemapClipping(width: number, height: number) {
@@ -219,11 +277,13 @@
         break;
       case MapViewModes.SIDE_X:
         const xPos = width / 2;
-        canvas.style.clipPath = `polygon(0 0, ${xPos}px 0, ${xPos}px 100%, 0 100%)`;
+        canvas.style.clipPath = "";
+        // canvas.style.clipPath = `polygon(0 0, ${xPos}px 0, ${xPos}px 100%, 0 100%)`;
         break;
       case MapViewModes.SIDE_Y:
-        const yPos = height / 2;
-        canvas.style.clipPath = `polygon(0 0, 100% 0, 100% ${yPos}px, 0 ${yPos}px)`;
+        canvas.style.clipPath = "";
+        // const yPos = height / 2;
+        // canvas.style.clipPath = `polygon(0 0, 100% 0, 100% ${yPos}px, 0 ${yPos}px)`;
         break;
       case MapViewModes.SPYGLASS:
         canvas.style.clipPath = "";
@@ -245,11 +305,11 @@
         canvas.style.clipPath = "";
         break;
       case MapViewModes.SIDE_X:
-        const xPos = width / 2;
+        const xPos = (width * sliderPosition) / 100;
         canvas.style.clipPath = `polygon(${xPos}px 0, 100% 0, 100% 100%, ${xPos}px 100%)`;
         break;
       case MapViewModes.SIDE_Y:
-        const yPos = height / 2;
+        const yPos = (height * sliderPosition) / 100;
         canvas.style.clipPath = `polygon(0 ${yPos}px, 100% ${yPos}px, 100% 100%, 0 100%)`;
         break;
       case MapViewModes.SPYGLASS:
@@ -298,19 +358,6 @@
   $: if (map && $selectedMapId) {
     loadHistoricalMap($selectedMapId);
   }
-  // let mapLoadTimeout: ReturnType<typeof setTimeout>;
-  // $: if (map && $selectedMapId) {
-  //   // Clear any pending load
-  //   if (mapLoadTimeout) clearTimeout(mapLoadTimeout);
-
-  //   // Debounce map loading to prevent rapid successive calls
-  //   mapLoadTimeout = setTimeout(() => {
-  //     loadHistoricalMap($selectedMapId);
-  //   }, 100);
-
-  //   // verify the cache
-  //   console.log("Current overlayCache state:", overlayCache);
-  // }
 
   // Subscribe to map opacity changes
   $: if (map && warpedMapLayer && $mapOpacity !== undefined) {
@@ -318,8 +365,17 @@
   }
 
   // Subscribe to view mode changes
-  $: if (map && warpedMapLayer) {
-    updateViewModeClipping();
+  $: if (map && warpedMapLayer && $viewMode !== MapViewModes.SPYGLASS) {
+    // Reset slider position when changing view modes
+    if (
+      $viewMode === MapViewModes.SIDE_X ||
+      $viewMode === MapViewModes.SIDE_Y
+    ) {
+      sliderPosition = 50;
+    }
+    requestAnimationFrame(() => {
+      updateViewModeClipping();
+    });
   }
 
   // Subscribe to lens radius changes for spyglass mode
@@ -330,6 +386,9 @@
     $lensRadius !== undefined
   ) {
     updateMapLensRadius();
+    setTimeout(() => {
+      updateBasemapClipping(...(map.getSize() || [0, 0]));
+    }, 100);
   }
 
   onMount(() => {
@@ -339,19 +398,34 @@
       view: new View({
         center: fromLonLat([106.70098, 10.77653]),
         zoom: 14,
+        constrainResolution: true,
+        smoothResolutionConstraint: true,
+        smoothExtentConstraint: true,
       }),
+      controls: [], // Remove default controls to prevent interference
     });
 
+    // UPDATED: Create WarpedMapLayer with transparency settings
     warpedMapLayer = new WarpedMapLayer({
       zIndex: 10,
+      // Try to configure for transparency if available
+      opacity: $mapOpacity || 1.0,
     });
 
     map.on(["change:size", "moveend"], () => {
       updateViewModeClipping();
     });
 
+    // Add global event listeners for slider
+    document.addEventListener("mousemove", handleSliderMove);
+    document.addEventListener("mouseup", handleSliderEnd);
+    document.addEventListener("touchmove", handleSliderMove, {
+      passive: false,
+    });
+    document.addEventListener("touchend", handleSliderEnd);
+
     // Set up periodic cache cleanup
-    const cacheCleanupInterval = setInterval(cleanupCache, 15 * 60 * 1000); // Every 15 minutes
+    const cacheCleanupInterval = setInterval(cleanupCache, 15 * 60 * 1000);
 
     // Cleanup on component destroy
     return () => {
@@ -359,6 +433,12 @@
         loadingController.abort();
       }
       clearInterval(cacheCleanupInterval);
+
+      // Remove event listeners
+      document.removeEventListener("mousemove", handleSliderMove);
+      document.removeEventListener("mouseup", handleSliderEnd);
+      document.removeEventListener("touchmove", handleSliderMove);
+      document.removeEventListener("touchend", handleSliderEnd);
     };
   });
 
@@ -366,15 +446,205 @@
   export { preloadMap };
 </script>
 
-<div bind:this={mapTarget} class="w-full h-full">
+<!-- Main map container with relative positioning -->
+<div bind:this={mapTarget} class="relative w-full h-full overflow-hidden">
+  <!-- Enhanced loading indicator -->
   {#if isLoading}
     <div
-      class="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow-md"
+      class="absolute top-4 left-4 z-50 flex items-center gap-3 bg-white/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-gray-200/50 transition-all duration-300 ease-out"
     >
+      <!-- Animated spinner -->
       <div
-        class="h-4 w-4 animate-spin rounded-full border-2 border-solid border-indigo-600 border-r-transparent"
+        class="h-5 w-5 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent shadow-sm"
       ></div>
-      <span class="text-sm text-gray-700">Loading map...</span>
+
+      <!-- Loading text -->
+      <span class="text-sm font-medium text-gray-700 select-none"
+        >Loading map data...</span
+      >
+
+      <!-- Optional progress indicator -->
+      <div class="flex space-x-1">
+        <div class="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
+        <div
+          class="w-1 h-1 bg-blue-400 rounded-full animate-bounce delay-75"
+        ></div>
+        <div
+          class="w-1 h-1 bg-blue-400 rounded-full animate-bounce delay-150"
+        ></div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Error state (if needed) -->
+  {#if currentMapId === null && !isLoading && $selectedMapId}
+    <div
+      class="absolute top-4 left-4 z-50 flex items-center gap-3 bg-red-50/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-red-200/50"
+    >
+      <div class="h-5 w-5 text-red-500">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+      </div>
+      <span class="text-sm font-medium text-red-700 select-none"
+        >Failed to load map</span
+      >
+    </div>
+  {/if}
+
+  <!-- Success state indicator (optional) -->
+  {#if currentMapId && !isLoading}
+    <div
+      class="absolute top-4 right-4 z-50 flex items-center gap-2 bg-green-50/90 backdrop-blur-md px-3 py-2 rounded-lg shadow-md border border-green-200/50 transition-all duration-300 ease-out opacity-100 animate-fade-in"
+    >
+      <div class="h-4 w-4 text-green-500">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          ></path>
+        </svg>
+      </div>
+      <span class="text-xs font-medium text-green-700 select-none"
+        >Map loaded</span
+      >
+    </div>
+  {/if}
+
+  <!-- Draggable Slider for Side X mode -->
+  {#if $viewMode === MapViewModes.SIDE_X && currentMapId}
+    <div
+      class="absolute top-0 bottom-0 z-40 w-1 bg-white/80 shadow-lg cursor-ew-resize transition-all duration-150 hover:w-2 hover:bg-white/90"
+      style="left: {sliderPosition}%"
+      on:mousedown={handleSliderStart}
+      on:touchstart={handleSliderStart}
+      role="slider"
+      tabindex="0"
+      aria-label="Adjust split position"
+      aria-valuenow={sliderPosition}
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <!-- Slider handle -->
+      <div
+        class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg border-2 border-gray-300 flex items-center justify-center"
+      >
+        <div class="w-1 h-3 bg-gray-400 rounded-full"></div>
+        <div class="w-1 h-3 bg-gray-400 rounded-full ml-0.5"></div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Draggable Slider for Side Y mode -->
+  {#if $viewMode === MapViewModes.SIDE_Y && currentMapId}
+    <div
+      class="absolute left-0 right-0 z-40 h-1 bg-white/80 shadow-lg cursor-ns-resize transition-all duration-150 hover:h-2 hover:bg-white/90"
+      style="top: {sliderPosition}%"
+      on:mousedown={handleSliderStart}
+      on:touchstart={handleSliderStart}
+      role="slider"
+      tabindex="0"
+      aria-label="Adjust split position"
+      aria-valuenow={sliderPosition}
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <!-- Slider handle -->
+      <div
+        class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg border-2 border-gray-300 flex items-center justify-center"
+      >
+        <div class="h-1 w-3 bg-gray-400 rounded-full"></div>
+        <div class="h-1 w-3 bg-gray-400 rounded-full mt-0.5"></div>
+      </div>
     </div>
   {/if}
 </div>
+
+<style>
+  /* Custom Tailwind animations and utilities */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* ENHANCED: Remove backgrounds and enable transparency */
+  :global(.ol-layer canvas) {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* Specific targeting for warped map layer */
+  :global(.allmaps-warped-map-layer canvas) {
+    background: transparent !important;
+    background-color: transparent !important;
+    mix-blend-mode: normal;
+  }
+
+  /* Ensure proper layering and transparency */
+  :global(.ol-viewport) {
+    background: transparent;
+  }
+
+  :global(.ol-viewport .ol-layers) {
+    background: transparent;
+  }
+
+  /* Force transparency on all map-related canvases */
+  :global(canvas) {
+    background-color: transparent !important;
+  }
+
+  /* Smooth transitions for map layers */
+  :global(.ol-layer) {
+    transition: opacity 0.25s ease-in-out;
+  }
+
+  /* Hide OpenLayers attribution in bottom right */
+  :global(.ol-attribution) {
+    @apply hidden;
+  }
+
+  /* Custom scrollbar for any overflow (if needed) */
+  :global(.ol-viewport::-webkit-scrollbar) {
+    display: none;
+  }
+
+  /* Prevent text selection on map */
+  :global(.ol-viewport) {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Smooth cursor changes for different view modes */
+  :global(.ol-viewport) {
+    transition: cursor 0.15s ease;
+  }
+
+  /* Custom cursor styles for sliders */
+  .cursor-ew-resize {
+    cursor: ew-resize;
+  }
+
+  .cursor-ns-resize {
+    cursor: ns-resize;
+  }
+</style>
